@@ -1,0 +1,104 @@
+#include "system_sam3x.h"
+#include "at91sam3x8.h"
+#include "core_cm3.h"
+#include "Screen.h"
+
+
+unsigned int Ra,Rb;
+unsigned int Global;
+
+void main(void)
+{
+  
+  SystemInit();
+  
+  *((volatile unsigned int *) 0x400E0610U) = 0xFFFFFFFC;        //PMC_PCER=0
+  
+  init();
+  
+  *((volatile unsigned int *) 0x400E1004U) = 0x2000000;         //PIOB_PDR
+  
+  *((volatile unsigned int *) 0x400800E4U) = 0x0;               //TC_WPMR
+  
+  *((volatile unsigned int *) 0x40080004) = 0x0;         //Välj timer_clock1
+  
+  *((volatile unsigned int *) 0x40080000U) = 0x5;         //TC_CCR0 - enable timer and make sw_reset
+  
+  
+  //Load counters
+  //&(*((volatile unsigned int *) 0x400E123CU));
+  
+  //volatile unsigned int *Ra = &(*((volatile unsigned int *) 0x40080010U));        //0x40080010 counter value
+  
+  
+  volatile unsigned int *FallingA = &(*((volatile unsigned int *) 0x40080010U));       //0x40080004
+  volatile unsigned int *RisingB = &(*((volatile unsigned int *) 0x40080010U));        //0x40080004
+  unsigned int risingb = *RisingB;
+  unsigned int fallinga = *FallingA;
+  
+  
+   if((fallinga & 0x20000) == 0x20000){
+    
+    volatile unsigned int *CounterValue = &(*((volatile unsigned int *) 0x40080010U));
+    Ra = *CounterValue;
+    
+  }
+  if((risingb & 0x40000) == 0x40000){
+    
+    volatile unsigned int *CounterValue = &(*((volatile unsigned int *) 0x40080010U));
+    Rb = *CounterValue;
+    
+  }
+  
+  
+  *((volatile unsigned int *) 0x400E1000U) = 0x2000000;         //PIOB_PER - enable pin
+  
+  
+  NVIC_ClearPendingIRQ(12);
+  NVIC_SetPriority(12,1);
+  NVIC_EnableIRQ(12);
+  
+  
+  //start measurement
+  
+  *((volatile unsigned int *) 0x40080024U) = 0x40;              //TC_IER_LDRBS
+  
+  unsigned int i = 0;
+  
+  *((volatile unsigned int *) 0x40080000U) = 0x4;               //sw_reset
+  *((volatile unsigned int *) 0x400E1004U) = 0x2000000;         //PIOB_PDR
+  
+  for(; i < 54; i++) asm("nop");
+                                                                                    //Startpuls = 34st i
+  *((volatile unsigned int *) 0x400E1000U) = 0x2000000;         //PIOB_PER - enable pin
+  
+  while(1){
+    
+    //volatile unsigned char *temp;
+    //temp = &(*((volatile unsigned char *) 0x400E123CU));
+    
+    unsigned short int i = 0;
+    
+     for(; i < 3000; i++){
+      asm("nop");
+    }
+    
+    //tal =  &(*((volatile unsigned int *) 0x400E103CU));
+    //unsigned int hej = *tal & 0xFFFFFFFF;
+    
+    //printf("%d\n",hej);
+    
+    
+  }
+  
+}
+
+
+void PIOB_Handler(void){
+  
+  *((volatile unsigned int *) 0x40080028U) = 0x40;              //TC_IDR_LDRBS
+   Global = Rb - Ra;
+  
+  
+}
+
